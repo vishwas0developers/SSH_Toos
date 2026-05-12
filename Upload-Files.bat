@@ -4,8 +4,8 @@ cls
 
 :server_menu
 echo Select your server:
-echo [1] Free server
-echo [2] Paid server
+echo [1] 1. server
+echo [2] 2. server
 echo [3] Enter manually
 echo.
 
@@ -14,10 +14,10 @@ set /p SERVER_CHOICE="Enter your choice (1/2/3): "
 
 if "%SERVER_CHOICE%"=="1" (
     set "SERVER_IP="
-    set /p SERVER_IP="Enter Free server IP or domain: "
+    set /p SERVER_IP="Enter 1. server IP or domain: "
 ) else if "%SERVER_CHOICE%"=="2" (
     set "SERVER_IP="
-    set /p SERVER_IP="Enter Paid server IP or domain: "
+    set /p SERVER_IP="Enter 2. server IP or domain: "
 ) else if "%SERVER_CHOICE%"=="3" (
     echo.
     set "SERVER_IP="
