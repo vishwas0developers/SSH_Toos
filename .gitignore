@@ -1,0 +1,10 @@
+# Ignore the following files and directories
+/mysql_error.log
+Files/*
+*.zip
+*.sql
+1.Download_DB.bat
+2.Download_Files.bat
+3.Upload_DB.bat
+4.Upload-Files.bat
+Upload-Files.bat.txt
