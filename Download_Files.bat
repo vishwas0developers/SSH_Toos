@@ -5,29 +5,22 @@ cls
 
 :server_menu
 echo Select your server:
-echo [1] 1. server
-echo [2] 2. server
+echo [1] 990.990.990.990
+echo [2] 990.990.990.990
 echo [3] Enter manually
 echo.
 set "SERVER_CHOICE="
 set /p SERVER_CHOICE="Enter your choice (1/2/3): "
-if "%SERVER_CHOICE%"=="1" (
-    set "SERVER_IP="
-    set /p SERVER_IP="Enter 1. server IP or domain: "
-) else if "%SERVER_CHOICE%"=="2" (
-    set "SERVER_IP="
-    set /p SERVER_IP="Enter 2. server IP or domain: "
-) else if "%SERVER_CHOICE%"=="3" (
-    set "SERVER_IP="
-    set /p SERVER_IP="Enter custom server IP or domain: "
-)
+if "%SERVER_CHOICE%"=="1" set "SERVER_IP=990.990.990.990"
+if "%SERVER_CHOICE%"=="2" set "SERVER_IP=990.990.990.990"
+if "%SERVER_CHOICE%"=="3" (set "SERVER_IP=" & set /p SERVER_IP="Enter custom server IP or domain: ")
 if not defined SERVER_IP (echo Invalid choice. & goto server_menu)
 
 echo. & echo ---------------------------------------- & echo.
 
 :username_prompt
 set "SSH_USER="
-set /p SSH_USER="Enter SSH username (e.g. online2study-admin): "
+set /p SSH_USER="Enter SSH username (e.g. admin_ssh): "
 if not defined SSH_USER (echo Username cannot be empty. & goto username_prompt)
 
 echo. & echo ---------------------------------------- & echo.
@@ -65,45 +58,62 @@ ssh -o ServerAliveInterval=30 %SSH_USER%@%SERVER_IP% "test -f /home/%SSH_USER%/h
 set "FILE_EXISTS_CHECK=%ERRORLEVEL%"
 set "SHOULD_CREATE_ZIP=0"
 
-if %FILE_EXISTS_CHECK% EQU 0 (
-    :overwrite_prompt
-    echo SERVER WARNING: "!ZIP_FILE_NAME!" already exists on the server.
-    set "OVERWRITE_CHOICE="
-    set /p OVERWRITE_CHOICE="Overwrite (Y), download existing (N), or create with new name (R)? (Y/N/R): "
-    
-    set "VALID_INPUT=0"
-    if /i "%OVERWRITE_CHOICE%"=="Y" ( set "SHOULD_CREATE_ZIP=1" & set "VALID_INPUT=1" )
-    if /i "%OVERWRITE_CHOICE%"=="N" ( set "SHOULD_CREATE_ZIP=0" & set "VALID_INPUT=1" )
-    if /i "%OVERWRITE_CHOICE%"=="R" (
-        set "VALID_INPUT=1"
-        :new_remote_name
-        echo.
-        set "NEW_NAME="
-        set /p NEW_NAME="Enter new zip file name for server (e.g., backup.zip): "
-        if not defined NEW_NAME (echo Name cannot be empty. & goto new_remote_name)
-        if /i not "!NEW_NAME:~-4!"==".zip" set "NEW_NAME=!NEW_NAME!.zip"
-        set "ZIP_FILE_NAME=!NEW_NAME!"
-        set "SHOULD_CREATE_ZIP=1"
-    )
-    if "%VALID_INPUT%"=="0" ( echo Invalid input. Please enter Y, N, or R. & echo. & goto :overwrite_prompt )
-) else (
+if %FILE_EXISTS_CHECK% NEQ 0 (
     set "SHOULD_CREATE_ZIP=1"
+    goto after_overwrite
 )
 
-if %SHOULD_CREATE_ZIP% EQU 1 (
-    echo.
-    echo Creating "!ZIP_FILE_NAME!" on the server...
-    echo (Showing progress to keep connection alive. Please wait...)
-    
-    REM SOLUTION APPLIED HERE:
-    REM 1. Added -o "ServerAliveInterval=30" to prevent timeout
-    REM 2. Removed -q from zip command to show file progress
+:overwrite_prompt
+echo SERVER WARNING: "!ZIP_FILE_NAME!" already exists on the server.
+set "OVERWRITE_CHOICE="
+set /p OVERWRITE_CHOICE="Overwrite (Y), download existing (N), or create with new name (R)? (Y/N/R): "
+if /i "!OVERWRITE_CHOICE!"=="Y" (set "SHOULD_CREATE_ZIP=1" & goto after_overwrite)
+if /i "!OVERWRITE_CHOICE!"=="N" (set "SHOULD_CREATE_ZIP=0" & goto after_overwrite)
+if /i "!OVERWRITE_CHOICE!"=="R" goto new_remote_name
+echo Invalid input. Please enter Y, N, or R. & echo.
+goto overwrite_prompt
+
+:new_remote_name
+echo.
+set "NEW_NAME="
+set /p NEW_NAME="Enter new zip file name for server (e.g., backup.zip): "
+if not defined NEW_NAME (echo Name cannot be empty. & goto new_remote_name)
+if /i not "!NEW_NAME:~-4!"==".zip" set "NEW_NAME=!NEW_NAME!.zip"
+set "ZIP_FILE_NAME=!NEW_NAME!"
+set "SHOULD_CREATE_ZIP=1"
+
+:after_overwrite
+if %SHOULD_CREATE_ZIP% NEQ 1 goto skip_zip
+
+:zip_mode_prompt
+echo Select what to include in the ZIP archive:
+echo [1] Include ALL files (ignore .gitignore - archive everything)
+echo [2] Exclude Git-ignored files (only files not ignored by Git)
+echo.
+set "ZIP_MODE="
+set /p ZIP_MODE="Enter your choice (1/2): "
+if not "%ZIP_MODE%"=="1" if not "%ZIP_MODE%"=="2" (echo. & echo Invalid choice. Please enter 1 or 2. & echo. & goto zip_mode_prompt)
+
+echo.
+echo Creating "!ZIP_FILE_NAME!" on the server...
+echo (Showing progress to keep connection alive. Please wait...)
+
+REM SOLUTION APPLIED HERE:
+REM 1. Added -o "ServerAliveInterval=30" to prevent timeout
+REM 2. Removed -q from zip command to show file progress
+if "%ZIP_MODE%"=="1" (
+    REM Mode 1: Include ALL files regardless of .gitignore
     ssh -o "ServerAliveInterval=30" -o "ServerAliveCountMax=240" %SSH_USER%@%SERVER_IP% "cd /home/%SSH_USER%/htdocs/ && rm -f !ZIP_FILE_NAME! && zip -r !ZIP_FILE_NAME! !SELECTED_DIR!"
-    
-    if %ERRORLEVEL% NEQ 0 (echo. & echo Failed to create zip archive on the server. & goto end)
-    echo.
-    echo New zip archive created successfully.
+) else (
+    REM Mode 2: Exclude Git-ignored files and directories
+    ssh -o "ServerAliveInterval=30" -o "ServerAliveCountMax=240" %SSH_USER%@%SERVER_IP% "cd /home/%SSH_USER%/htdocs/ && rm -f !ZIP_FILE_NAME! && TEMP_GIT=0 && if [ -d !SELECTED_DIR!/.git ]; then :; else git -c safe.directory=* -C !SELECTED_DIR! init >/dev/null 2>&1 && TEMP_GIT=1; fi && git -c safe.directory=* -C !SELECTED_DIR! ls-files -co --exclude-standard | sed s#^^#!SELECTED_DIR!/# | zip !ZIP_FILE_NAME! -@; STATUS=$?; if [ $TEMP_GIT -eq 1 ]; then rm -rf !SELECTED_DIR!/.git; fi; exit $STATUS"
 )
+
+if %ERRORLEVEL% NEQ 0 (echo. & echo Failed to create zip archive on the server. & goto end)
+echo.
+echo New zip archive created successfully.
+
+:skip_zip
 
 echo. & echo ---------------------------------------- & echo.
 
