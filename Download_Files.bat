@@ -118,27 +118,27 @@ echo New zip archive created successfully.
 echo. & echo ---------------------------------------- & echo.
 
 set "LOCAL_SAVE_NAME=!ZIP_FILE_NAME!"
-if exist "!ZIP_FILE_NAME!" (
-    :local_overwrite_prompt
-    echo LOCAL WARNING: The file "!ZIP_FILE_NAME!" already exists in this folder.
-    set "LOCAL_OVERWRITE_CHOICE="
-    set /p LOCAL_OVERWRITE_CHOICE="Overwrite local file (Y), cancel (N), or save with new name (R)? (Y/N/R): "
+if not exist "!ZIP_FILE_NAME!" goto after_local_overwrite
 
-    set "VALID_LOCAL_INPUT=0"
-    if /i "%LOCAL_OVERWRITE_CHOICE%"=="Y" ( set "VALID_LOCAL_INPUT=1" )
-    if /i "%LOCAL_OVERWRITE_CHOICE%"=="N" ( echo. & echo Download cancelled by user. & goto end )
-    if /i "%LOCAL_OVERWRITE_CHOICE%"=="R" (
-        set "VALID_LOCAL_INPUT=1"
-        :new_local_name
-        echo.
-        set "NEW_LOCAL_NAME="
-        set /p NEW_LOCAL_NAME="Enter new local file name to save as: "
-        if not defined NEW_LOCAL_NAME (echo Name cannot be empty. & goto new_local_name)
-        if /i not "!NEW_LOCAL_NAME:~-4!"==".zip" set "NEW_LOCAL_NAME=!NEW_LOCAL_NAME!.zip"
-        set "LOCAL_SAVE_NAME=!NEW_LOCAL_NAME!"
-    )
-    if "%VALID_LOCAL_INPUT%"=="0" ( echo Invalid input. Please enter Y, N, or R. & echo. & goto :local_overwrite_prompt )
-)
+:local_overwrite_prompt
+echo LOCAL WARNING: The file "!ZIP_FILE_NAME!" already exists in this folder.
+set "LOCAL_OVERWRITE_CHOICE="
+set /p LOCAL_OVERWRITE_CHOICE="Overwrite local file (Y), cancel (N), or save with new name (R)? (Y/N/R): "
+if /i "!LOCAL_OVERWRITE_CHOICE!"=="Y" (set "LOCAL_SAVE_NAME=!ZIP_FILE_NAME!" & goto after_local_overwrite)
+if /i "!LOCAL_OVERWRITE_CHOICE!"=="N" (echo. & echo Download cancelled by user. & goto end)
+if /i "!LOCAL_OVERWRITE_CHOICE!"=="R" goto new_local_name
+echo Invalid input. Please enter Y, N, or R. & echo.
+goto local_overwrite_prompt
+
+:new_local_name
+echo.
+set "NEW_LOCAL_NAME="
+set /p NEW_LOCAL_NAME="Enter new local file name to save as: "
+if not defined NEW_LOCAL_NAME (echo Name cannot be empty. & goto new_local_name)
+if /i not "!NEW_LOCAL_NAME:~-4!"==".zip" set "NEW_LOCAL_NAME=!NEW_LOCAL_NAME!.zip"
+set "LOCAL_SAVE_NAME=!NEW_LOCAL_NAME!"
+
+:after_local_overwrite
 
 echo.
 echo Starting download of "!ZIP_FILE_NAME!" as "!LOCAL_SAVE_NAME!"...
