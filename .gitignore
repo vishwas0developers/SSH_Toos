@@ -8,3 +8,17 @@ Files/*
 3.Upload_DB.bat
 4.Upload-Files.bat
 Upload-Files.bat.txt
+
+# --- secrets (security rollout) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+**/credentials.json
+**/client_secret*.json
+**/service_account*.json
+**/creds.json
